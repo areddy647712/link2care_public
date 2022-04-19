@@ -22,13 +22,13 @@ open 'smb://islgpcifs.uthouston.edu/sph_research/Link2Care/'
 3. Update file paths, if necessary. 
 
 ```{r}
-master_log_path <- "//Users/aishwarya/Desktop/Live Documents/Master Log (version2).xlsx"
-phone_term_path <- "/Users/aishwarya/Desktop/Live Documents/Link2Care Phone Terminations.xlsx"
-remote_path <- "/Users/aishwarya/Desktop/Live Documents/L2C Remote Interview & Redcap Tracking.xlsx"
-ema_initial_pay_approach_path <- "/Users/aishwarya/Desktop/Live Documents/ema_data comparison.xlsx"
-ema_15_day_path <- "/Users/aishwarya/Desktop/Live Documents/15_Day_EMA.xlsx"
-arrest_path <- "/Users/aishwarya/Desktop/Link2Care/current_arrest_data.xlsx"
-bridge_path <- "/Users/aishwarya/Desktop/Link2Care/bridge_session_minutes.xlsx"
+master_log_path <- "/Volumes/Link2Care/Live Documents/Master Log (version2).xlsx"
+phone_term_path <- "/Volumes/Link2Care/Live Documents/Link2Care Phone Terminations.xlsx"
+remote_path <- "/Volumes/Link2Care/Live Documents/L2C Remote Interview & Redcap Tracking.xlsx"
+ema_initial_pay_approach_path <- "/Volumes/Link2Care/Live Documents/ema_data comparison.xlsx"
+ema_15_day_path <- "/Volumes/Link2Care/Live Documents/15_Day_EMA.xlsx"
+arrest_path <- "/Volumes/Link2Care/Participant Data/Arrest Data Requests/current_arrest_data.xlsx"
+bridge_path <- "/Volumes/Link2Care/Participant Data/Bridge Session Data/bridge_session_minutes.xlsx"
 ```
 
 4. Click "Run All Chunks Below" to create the  quarterly report as a Word document.
@@ -54,8 +54,8 @@ library(flextable, warn.conflicts = FALSE)
 # Load helper functions
 
 ```{r}
-source("../R/get_mean_sd.R")
-source("../R/flextable_helpers.R")
+source("R/get_mean_sd.R")
+source("R/flextable_helpers.R")
 ```
 
 
@@ -92,7 +92,8 @@ master_log_screened_in <- read_excel(
   ),
   na = c("", ".", "N/A", "No show", "No Show"),
   skip = 1
-)
+) %>% 
+  filter(!is.na(id))
 
 # Print a message for when this file is being sourced
 cat(
@@ -102,7 +103,7 @@ cat(
   "columns.\n"
 )
 
-# 2022-4-18: Master log screened in imported with 329 rows and 55 columns.
+# 2022-04-19: Master log screened in imported with 360 rows and 55 columns.
 ```
 
 ## Master log Screened-out
@@ -277,7 +278,7 @@ Coerce date columns to dates
 master_log_combined <- master_log_combined %>% 
   mutate(
     across(
-      c(date_v2_presented:date_v5_presented),
+      starts_with("date_"),
       ~ as.Date(as.numeric(.x), origin = "1899-12-30")
     )
   )
@@ -1206,6 +1207,8 @@ table_7_overall <- master_log_screened_in %>%
     names_prefix = "v",
     values_to = "complete"
   ) %>% 
+  # Coerce complete to numeric to calculate prop below
+  mutate(complete = if_else(complete == "Yes", 1L, 0L)) %>% 
   group_by(visit) %>% 
   summarise(
     n = sum(complete == 1, na.rm = TRUE),
@@ -1221,13 +1224,15 @@ Add visit compliance Excluding No Show V2 PTs
 
 ```{r}
 table_7_w_v2 <- master_log_screened_in %>%
-  filter(v2 == 1) %>% 
+  filter(v2 == "Yes") %>% 
   pivot_longer(
     cols = v1:v5,
     names_to = "visit",
     names_prefix = "v",
     values_to = "complete"
   ) %>% 
+  # Coerce complete to numeric to calculate prop below
+  mutate(complete = if_else(complete == "Yes", 1L, 0L)) %>%
   group_by(visit) %>% 
   summarise(
     n = sum(complete == 1, na.rm = TRUE),
@@ -1870,7 +1875,7 @@ ggplot(baseline_per_month_by_year, aes(month_f, n, group = year_f)) +
   geom_line(aes(color = year_f)) +
   scale_x_discrete("Month") +
   scale_y_continuous("Number of Participants Enrolled") +
-  scale_color_manual("Year", values = c("#008744", "#0057e7", "#d62d20", "black")) +
+  scale_color_discrete("Year") +
   theme_classic() 
 ```
 
