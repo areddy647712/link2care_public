@@ -22,7 +22,7 @@ open 'smb://islgpcifs.uthouston.edu/sph_research/Link2Care/'
 3. Update file paths, if necessary. 
 
 ```{r}
-master_log_path <- "/Volumes/Link2Care/Live Documents/L2C_Master_Log.xlsm"
+master_log_path <- "/Volumes/Link2Care/Live Documents/Master Log (version2).xlsx"
 phone_term_path <- "/Volumes/Link2Care/Live Documents/Link2Care Phone Terminations.xlsx"
 remote_path <- "/Volumes/Link2Care/Live Documents/L2C Remote Interview & Redcap Tracking.xlsx"
 ema_initial_pay_approach_path <- "/Volumes/Link2Care/Live Documents/ema_data comparison.xlsx"
@@ -70,24 +70,30 @@ master_log_screened_in <- read_excel(
   # "/Users/bradcannell/Desktop/L2C_Master_Log.xlsm",
   sheet = "Screened In",
   col_names = c(
-    "id", "status", "date_baseline", "date_v2_scheduled", "date_v2", 
-    "date_v3_scheduled", "date_v3",  "date_v4_scheduled", "date_v4", 
-    "date_v5_scheduled", "date_v5", "group", "name_first", "name_middle_init", 
-    "name_last", "gender", "race", "hispanic", "date_birth", "age", "clincard_id", 
-    "n_clincards", "phone_id", "phone_number_l2c", "phone_n_distributed", 
-    "care_manager", "v1", "v2", "v3", "v4", "v5", "v3_r_distributed", 
-    "v3_r_completed", "v4_r_distributed", "v4_r_completed", "v5_r_distributed", 
-    "v5_r_completed", "v2_phone", "v3_phone", "v4_phone", "v5_phone"
+    "id", "status", "date_baseline", "date_dropped", "date_v2_scheduled", "date_v2_presented",
+    "late_v2", "no_show_v2","days_v2_to_v3_scheduled","date_v3_scheduled", 
+    "date_v3_presented", "late_v3", "no_show_v3", "days_v3_to_v4_scheduled", 
+    "date_v4_scheduled", "date_v4_presented", "late_v4", "no_show_v4", 
+    "days_4v_to_v5_scheduled", "date_v5_scheduled", "date_v5_presented", 
+    "late_v5", "no_show_v5", "group", "v2_status", "dropped_status", "name_first",
+    "name_middle_init",  "name_last", "gender", "race", "hispanic", "date_birth", 
+    "age", "clincard_id", "n_clincards", "phone_id", "phone_number_l2c", 
+    "phone_n_distributed", "care_manager", "v1", "v2", "v3", "v4", "v5", 
+    "v3_r_distributed", "v3_r_completed", "v4_r_distributed", 
+    "v4_r_completed","v5_r_distributed", "v5_r_completed", "v2_phone", "v3_phone",
+    "v4_phone", "v5_phone"
   ),
   col_types = c(
     # Some of the dates must be imported as text because the have embedded 
     # notes (e.g., "no show")
-    rep("text",2) , rep("date", 9), rep("text", 7), "date", "numeric", "text", 
-    "numeric", rep("text", 2), "numeric", "text", rep("numeric", 15)
+    rep("text",2), rep("date", 4), rep("text", 2), "numeric", rep("date", 2),
+    rep("text", 2), "numeric", rep("date", 2), rep("text", 2), "numeric", rep("date", 2), rep("text", 11),
+    "date", "numeric", "text", "numeric", rep("text", 2), "numeric", "text", rep("text", 15)
   ),
   na = c("", ".", "N/A", "No show", "No Show"),
   skip = 1
-)
+) %>% 
+  filter(!is.na(id))
 
 # Print a message for when this file is being sourced
 cat(
@@ -97,7 +103,7 @@ cat(
   "columns.\n"
 )
 
-# 2021-11-23: Master log screened in imported with 329 rows and 41 columns.
+# 2022-04-19: Master log screened in imported with 360 rows and 55 columns.
 ```
 
 ## Master log Screened-out
@@ -272,7 +278,7 @@ Coerce date columns to dates
 master_log_combined <- master_log_combined %>% 
   mutate(
     across(
-      c(date_v2:date_v5),
+      starts_with("date_"),
       ~ as.Date(as.numeric(.x), origin = "1899-12-30")
     )
   )
@@ -1201,6 +1207,8 @@ table_7_overall <- master_log_screened_in %>%
     names_prefix = "v",
     values_to = "complete"
   ) %>% 
+  # Coerce complete to numeric to calculate prop below
+  mutate(complete = if_else(complete == "Yes", 1L, 0L)) %>% 
   group_by(visit) %>% 
   summarise(
     n = sum(complete == 1, na.rm = TRUE),
@@ -1216,13 +1224,15 @@ Add visit compliance Excluding No Show V2 PTs
 
 ```{r}
 table_7_w_v2 <- master_log_screened_in %>%
-  filter(v2 == 1) %>% 
+  filter(v2 == "Yes") %>% 
   pivot_longer(
     cols = v1:v5,
     names_to = "visit",
     names_prefix = "v",
     values_to = "complete"
   ) %>% 
+  # Coerce complete to numeric to calculate prop below
+  mutate(complete = if_else(complete == "Yes", 1L, 0L)) %>%
   group_by(visit) %>% 
   summarise(
     n = sum(complete == 1, na.rm = TRUE),
@@ -1865,7 +1875,7 @@ ggplot(baseline_per_month_by_year, aes(month_f, n, group = year_f)) +
   geom_line(aes(color = year_f)) +
   scale_x_discrete("Month") +
   scale_y_continuous("Number of Participants Enrolled") +
-  scale_color_manual("Year", values = c("#008744", "#0057e7", "#d62d20", "black")) +
+  scale_color_discrete("Year") +
   theme_classic() 
 ```
 
